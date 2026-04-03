@@ -13,7 +13,6 @@ st.markdown("""
     div[data-testid="stDecoration"] { display: none; }
     .block-container { padding-top: 0.75rem !important; padding-bottom: 6rem; max-width: 1100px; }
 
-    /* Card heading — bigger */
     .card-title {
         font-size: 13px;
         font-weight: 700;
@@ -25,21 +24,29 @@ st.markdown("""
         border-bottom: 1px solid #e9ecef;
     }
 
-    /* Compact card buttons — smaller text, tighter spacing */
+    /* Remove ALL spacing Streamlit adds around buttons inside cards */
+    .compact-btn { margin: 0 !important; padding: 0 !important; line-height: 1 !important; }
+    .compact-btn > div[data-testid="stButton"] {
+        margin: 0 !important;
+        padding: 0 !important;
+        gap: 0 !important;
+    }
     .compact-btn > div[data-testid="stButton"] > button {
         background: transparent !important;
         border: none !important;
         border-bottom: 1px solid #f3f4f5 !important;
         border-radius: 0 !important;
-        padding: 1.5px 2px !important;
+        padding: 0px 2px 0px 2px !important;
+        margin: 0 !important;
         text-align: left !important;
-        font-size: 9px !important;
+        font-size: 7px !important;
         color: #343a40 !important;
         box-shadow: none !important;
         height: auto !important;
         min-height: unset !important;
-        line-height: 1.3 !important;
+        line-height: 1.2 !important;
         width: 100% !important;
+        display: block !important;
     }
     .compact-btn > div[data-testid="stButton"] > button:hover {
         background: #f0f4ff !important;
@@ -69,23 +76,19 @@ st.markdown("""
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Metric pills */
     .metric-pill { display: inline-block; font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 20px; margin: 1px 1px 0 0; }
     .pill-green { background: #d4edda; color: #155724; }
     .pill-blue  { background: #d1ecf1; color: #0c5460; }
 
-    /* Back to top */
     #back-to-top { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: white; border: none; border-radius: 24px; padding: 8px 18px; font-size: 13px; font-weight: 500; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.2); display: none; align-items: center; z-index: 9998; }
     #back-to-top:hover { background: #2d2d4e; }
 
-    /* FAB */
     .fab-container { position: fixed; bottom: 28px; right: 28px; z-index: 9999; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
     .fab-options { display: none; flex-direction: column; gap: 6px; align-items: flex-end; }
     .fab-container:hover .fab-options { display: flex; }
     .fab-btn { background: white; border: 1px solid #dee2e6; border-radius: 20px; padding: 7px 14px; font-size: 12px; font-weight: 500; color: #343a40; cursor: pointer; text-decoration: none; box-shadow: 0 2px 8px rgba(0,0,0,0.1); white-space: nowrap; display: block; }
     .fab-btn:hover { background: #f8f9fa; color: #343a40; text-decoration: none; }
     .fab-main { width: 48px; height: 48px; background: #4f8ef7; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; cursor: pointer; box-shadow: 0 4px 12px rgba(79,142,247,0.4); border: none; color: white; line-height: 1; }
-
     .chat-divider { border: none; border-top: 1px solid #f0f0f0; margin: 1rem 0 0.5rem; }
 </style>
 
@@ -139,13 +142,19 @@ for k, v in {
         st.session_state[k] = v
 
 
+# ─── Get user email from Streamlit Cloud auth ─────────────────────────────────
 def get_user_email():
-    try:
-        email = st.experimental_user.email
-        if email: return email
-    except Exception:
-        pass
-    return "user@flipkart.com"
+    # Try st.user first (newer Streamlit), then st.experimental_user (older)
+    for attr in ["user", "experimental_user"]:
+        try:
+            user_obj = getattr(st, attr, None)
+            if user_obj is not None:
+                email = getattr(user_obj, "email", None)
+                if email and email.strip() and email != "":
+                    return email.strip()
+        except Exception:
+            pass
+    return None   # None means unauthenticated / local dev
 
 USER_EMAIL = get_user_email()
 
@@ -217,19 +226,20 @@ def metric_pills(metrics):
     return "".join(f"<span class='metric-pill {colors[i]}'>{m}</span>" for i, m in enumerate(metrics))
 
 def log_usage(email, question):
-    shared["usage_logs"].append({"email": email,
+    shared["usage_logs"].append({"email": email or "unknown",
         "timestamp": datetime.now().strftime("%d %b %Y, %I:%M %p"), "question": question})
 
 def render_fab():
-    bug_url     = f"https://mail.google.com/mail/?view=cm&to={ADMIN_EMAIL}&su=Bug+Report+%7C+Address_Chhotu&body=Hi%2C%0A%0ABug%3A%0A%0A[Describe]%0A%0AFrom%3A+{USER_EMAIL}"
-    contact_url = f"https://mail.google.com/mail/?view=cm&to={ADMIN_EMAIL}&su=Query+%7C+Address_Chhotu&body=Hi%2C%0A%0AQuery%3A%0A%0A[Message]%0A%0AFrom%3A+{USER_EMAIL}"
+    user = USER_EMAIL or "unknown"
+    bug_url     = f"https://mail.google.com/mail/?view=cm&to={ADMIN_EMAIL}&su=Bug+Report+%7C+Address_Chhotu&body=Hi%2C%0A%0ABug%3A%0A%0A[Describe]%0A%0AFrom%3A+{user}"
+    contact_url = f"https://mail.google.com/mail/?view=cm&to={ADMIN_EMAIL}&su=Query+%7C+Address_Chhotu&body=Hi%2C%0A%0AQuery%3A%0A%0A[Message]%0A%0AFrom%3A+{user}"
     st.markdown(f"""<div class="fab-container"><div class="fab-options">
         <a href="{bug_url}" target="_blank" class="fab-btn">🐛 Report a Bug / Feedback</a>
         <a href="{contact_url}" target="_blank" class="fab-btn">📬 Contact Admin</a>
     </div><div class="fab-main" title="Help">💬</div></div>""", unsafe_allow_html=True)
 
 
-# ─── Popup dialog ─────────────────────────────────────────────────────────────
+# ─── Popup ────────────────────────────────────────────────────────────────────
 @st.dialog("Details", width="large")
 def show_popup():
     item      = st.session_state.popup_item or {}
@@ -255,10 +265,8 @@ def show_popup():
 
     metrics = item.get("metrics_impact") or item.get("metrics_focus") or []
     if metrics: st.markdown(metric_pills(metrics), unsafe_allow_html=True)
-
     st.divider()
     st.markdown(detail)
-
     if st.button("Close", key="popup_close"):
         st.session_state.popup_state = None
         st.rerun()
@@ -289,15 +297,13 @@ def render_cards(cards, doc_content):
                 for i, l in enumerate(launches[:4]):
                     name  = (l.get("name","") or "")[:40]
                     date  = l.get("date","") or ""
-                    label = f"🚀 {name}" + (f"  ·  {date}" if date else "")
-                    card_button(label, f"launch_{i}", l, "launch")
+                    card_button(f"🚀 {name}" + (f"  ·  {date}" if date else ""), f"launch_{i}", l, "launch")
                 if len(launches) > 4:
                     with st.expander(f"+ {len(launches)-4} more"):
                         for i, l in enumerate(launches[4:]):
-                            name  = (l.get("name","") or "")[:40]
-                            date  = l.get("date","") or ""
-                            label = f"🚀 {name}" + (f"  ·  {date}" if date else "")
-                            card_button(label, f"launch_e_{i}", l, "launch")
+                            name = (l.get("name","") or "")[:40]
+                            date = l.get("date","") or ""
+                            card_button(f"🚀 {name}" + (f"  ·  {date}" if date else ""), f"launch_e_{i}", l, "launch")
 
     with col2:
         with st.container(border=True):
@@ -307,13 +313,11 @@ def render_cards(cards, doc_content):
                 st.caption("Nothing found in doc yet")
             else:
                 for i, m in enumerate(meetings[:4]):
-                    label = f"📅 {(m.get('topic','') or '')[:40]}"
-                    card_button(label, f"meeting_{i}", m, "meeting")
+                    card_button(f"📅 {(m.get('topic','') or '')[:40]}", f"meeting_{i}", m, "meeting")
                 if len(meetings) > 4:
                     with st.expander(f"+ {len(meetings)-4} more"):
                         for i, m in enumerate(meetings[4:]):
-                            label = f"📅 {(m.get('topic','') or '')[:40]}"
-                            card_button(label, f"meeting_e_{i}", m, "meeting")
+                            card_button(f"📅 {(m.get('topic','') or '')[:40]}", f"meeting_e_{i}", m, "meeting")
 
     with col3:
         with st.container(border=True):
@@ -325,15 +329,13 @@ def render_cards(cards, doc_content):
                 for i, a in enumerate(accomplishments[:4]):
                     title  = (a.get("title","") or "")[:35]
                     impact = (a.get("impact","") or "")[:20]
-                    label  = f"✅ {title}" + (f"  ·  {impact}" if impact else "")
-                    card_button(label, f"accomp_{i}", a, "accomplishment")
+                    card_button(f"✅ {title}" + (f"  ·  {impact}" if impact else ""), f"accomp_{i}", a, "accomplishment")
                 if len(accomplishments) > 4:
                     with st.expander(f"+ {len(accomplishments)-4} more"):
                         for i, a in enumerate(accomplishments[4:]):
                             title  = (a.get("title","") or "")[:35]
                             impact = (a.get("impact","") or "")[:20]
-                            label  = f"✅ {title}" + (f"  ·  {impact}" if impact else "")
-                            card_button(label, f"accomp_e_{i}", a, "accomplishment")
+                            card_button(f"✅ {title}" + (f"  ·  {impact}" if impact else ""), f"accomp_e_{i}", a, "accomplishment")
 
 
 # ─── Loading handler ──────────────────────────────────────────────────────────
@@ -367,7 +369,7 @@ if st.session_state.show_login and not st.session_state.is_admin:
     with c1:
         if st.button("Login", type="primary"):
             if pwd == ADMIN_PASSWORD:
-                st.session_state.is_admin  = True
+                st.session_state.is_admin   = True
                 st.session_state.show_login = False
                 st.rerun()
             else:
@@ -433,11 +435,14 @@ else:
     with st.spinner("Syncing latest updates…"):
         cards = extract_cards_from_doc(doc_content, ANTHROPIC_API_KEY)
 
-    # Header
+    # Header — show actual email or nothing if unavailable
     h1, h2 = st.columns([5, 1])
     with h1:
         st.markdown("## 🤵 Address_Chhotu")
-        st.caption(f"Welcome, {USER_EMAIL} · Synced from source doc")
+        if USER_EMAIL:
+            st.caption(f"Welcome, {USER_EMAIL} · Synced from source doc")
+        else:
+            st.caption("Synced from source doc")
     with h2:
         st.markdown("<div style='padding-top:12px'>", unsafe_allow_html=True)
         if st.button("Admin", use_container_width=True):
@@ -446,18 +451,12 @@ else:
         st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("")
-
-    # 3 Cards
     render_cards(cards, doc_content)
-
-    # Loading handler
     handle_loading(doc_content)
 
-    # Popup
     if st.session_state.popup_state == "ready":
         show_popup()
 
-    # Chat
     st.markdown("<hr class='chat-divider'>", unsafe_allow_html=True)
     st.markdown("#### 💬 Ask anything about address tracks")
     st.caption("Chat bar stays pinned at the bottom · Scroll down to read responses")
