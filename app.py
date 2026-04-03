@@ -169,7 +169,7 @@ def extract_cards_from_doc(doc_content, api_key):
 
 Extract:
 1. upcoming_launches: max 6 objects — planned launches or initiatives with a target date.
-   Fields: "name"(≤40 chars), "date"(short e.g. "17 Apr"), "owner", "summary", "metrics_impact"(list from [Misroutes,RTO,Reachability,Drift,Text Quality,Delivery Promise Breach])
+   Fields: "name"(<=40 chars), "date"(short e.g. "17 Apr"), "owner", "summary", "metrics_impact"(list from [Misroutes,RTO,Reachability,Drift,Text Quality,Delivery Promise Breach])
 
 2. meeting_points: exactly 3 objects representing standing agenda items for the weekly leadership meeting.
    YOU MUST always return all 3 of these topics — derive their content from the document:
@@ -179,7 +179,7 @@ Extract:
    For each use: "topic"(use exactly the topic name above), "date"("Weekly Tuesday"), "summary"(1-2 sentences from doc), "launches_covered"(relevant launch names from doc), "metrics_focus"(list from [Misroutes,RTO,Reachability,Drift,Text Quality,Delivery Promise Breach])
 
 3. accomplishments: max 6 objects — things already completed or shipped.
-   Fields: "title"(≤35 chars), "impact"(≤20 chars e.g. "-20bps Misroutes"), "time"(e.g. "Jan'26"), "details", "metrics_impact"
+   Fields: "title"(<=35 chars), "impact"(<=20 chars e.g. "-20bps Misroutes"), "time"(e.g. "Jan'26"), "details", "metrics_impact"
 
 Use "" for missing strings, [] for missing lists.
 
@@ -232,8 +232,8 @@ def render_fab():
     bug_url     = f"https://mail.google.com/mail/?view=cm&to={ADMIN_EMAIL}&su=Bug+Report+%7C+Address_Chhotu&body=Hi%2C%0A%0ABug%3A%0A%0A[Describe]%0A%0AFrom%3A+{viewer}"
     contact_url = f"https://mail.google.com/mail/?view=cm&to={ADMIN_EMAIL}&su=Query+%7C+Address_Chhotu&body=Hi%2C%0A%0AQuery%3A%0A%0A[Message]%0A%0AFrom%3A+{viewer}"
     st.markdown(f"""<div class="fab-container"><div class="fab-options">
-        <a href="{bug_url}" target="_blank" class="fab-btn">🐛 Report a Bug / Feedback</a>
-        <a href="{contact_url}" target="_blank" class="fab-btn">📬 Contact Admin</a>
+        <a href="{bug_url}" target="_blank" class="fab-btn">Bug / Feedback</a>
+        <a href="{contact_url}" target="_blank" class="fab-btn">Contact Admin</a>
     </div><div class="fab-main" title="Help">💬</div></div>""", unsafe_allow_html=True)
 
 
@@ -493,6 +493,7 @@ Context:
         for i, s in enumerate(suggestions):
             with (c1 if i % 2 == 0 else c2):
                 if st.button(s, use_container_width=True, key=f"sug{i}"):
+                    st.session_state.popup_state = None  # prevent ghost card click
                     st.session_state.messages.append({"role": "user", "content": s})
                     log_usage(_log_name, s)
                     st.rerun()
@@ -524,6 +525,7 @@ Context:
                 st.session_state.messages.append({"role": "assistant", "content": reply})
 
     if prompt := st.chat_input("Ask about timelines, risks, owners, launches…"):
+        st.session_state.popup_state = None  # prevent ghost card click on rerun
         st.session_state.messages.append({"role": "user", "content": prompt})
         log_usage(_log_name, prompt)
         st.rerun()
