@@ -242,7 +242,7 @@ Return exactly:
 
     try:
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-6",
             max_tokens=2000,
             messages=[{"role": "user", "content": prompt}],
         )
@@ -275,7 +275,7 @@ Use numbers. Clear section headers. Under 300 words."""
 
     try:
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-6",
             max_tokens=600,
             system="Concise executive assistant. Use clear headers and bullet points. Be specific with numbers.",
             messages=[{"role": "user", "content": prompt + f"\n\nDocument:\n---\n{doc_content}\n---"}],
@@ -613,7 +613,7 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
 
             try:
                 response = client.messages.create(
-                    model="claude-sonnet-4-20250514",
+                    model="claude-sonnet-4-6",
                     max_tokens=800,
                     system=SYSTEM_PROMPT,
                     messages=cleaned,
