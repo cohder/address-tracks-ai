@@ -13,11 +13,9 @@ st.markdown("""
     div[data-testid="stDecoration"] { display: none; }
     .block-container { padding-top: 0.75rem !important; padding-bottom: 6rem; max-width: 1100px; }
 
-    /* ── Tighter gap between the 3 top card columns (~60% less than default) ── */
     div[data-testid="stHorizontalBlock"] { gap: 0.35rem !important; }
     div[data-testid="column"] { padding-left: 0.25rem !important; padding-right: 0.25rem !important; }
 
-    /* ── Top-of-screen loading overlay ── */
     .top-loader {
         position: fixed;
         top: 0; left: 0; right: 0;
@@ -42,7 +40,6 @@ st.markdown("""
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Card title (one step larger than before) ── */
     .card-title {
         font-size: 13px;
         font-weight: 700;
@@ -54,7 +51,6 @@ st.markdown("""
         border-bottom: 1px solid #e9ecef;
     }
 
-    /* ── Compact card item buttons: smaller text + minimal vertical waste ── */
     .compact-btn { margin: 0 !important; padding: 0 !important; line-height: 1 !important; }
     .compact-btn > div[data-testid="stButton"] { margin: 0 !important; padding: 0 !important; }
     .compact-btn > div[data-testid="stButton"] > button {
@@ -78,16 +74,13 @@ st.markdown("""
         color: #4f8ef7 !important;
     }
 
-    /* ── Metric pills ── */
     .metric-pill { display: inline-block; font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 20px; margin: 1px 1px 0 0; }
     .pill-green { background: #d4edda; color: #155724; }
     .pill-blue  { background: #d1ecf1; color: #0c5460; }
 
-    /* ── Back to top ── */
     #back-to-top { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: white; border: none; border-radius: 24px; padding: 8px 18px; font-size: 13px; font-weight: 500; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.2); display: none; align-items: center; z-index: 9998; }
     #back-to-top:hover { background: #2d2d4e; }
 
-    /* ── FAB ── */
     .fab-container { position: fixed; bottom: 28px; right: 28px; z-index: 9999; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
     .fab-options { display: none; flex-direction: column; gap: 6px; align-items: flex-end; }
     .fab-container:hover .fab-options { display: flex; }
@@ -97,7 +90,6 @@ st.markdown("""
 
     .chat-divider { border: none; border-top: 1px solid #f0f0f0; margin: 0.75rem 0 0.5rem; }
 
-    /* ── Card containers: less internal padding so rows sit tighter ── */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         padding-top: 0.35rem !important;
         padding-bottom: 0.35rem !important;
@@ -125,7 +117,6 @@ client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 
 def _viewer_identity():
-    """Streamlit Cloud can expose logged-in user; locally this is usually unset."""
     try:
         u = getattr(st, "user", None)
         if u is None:
@@ -174,14 +165,23 @@ def fetch_google_doc(url):
 @st.cache_data(ttl=300)
 def extract_cards_from_doc(doc_content, api_key):
     c = anthropic.Anthropic(api_key=api_key)
-    prompt = f"""Read this document and extract structured data. Return ONLY valid JSON, no markdown fences.
+    prompt = f"""Read this document carefully and extract structured data. Return ONLY valid JSON, no markdown fences.
 
 Extract:
-1. upcoming_launches: max 6 objects: "name"(≤40 chars), "date"(short), "owner", "summary", "metrics_impact"(list from [Misroutes,RTO,Reachability,Drift,Text Quality,Delivery Promise Breach])
-2. meeting_points: max 6 objects: "topic"(≤40 chars), "date", "summary", "launches_covered", "metrics_focus"(same list)
-3. accomplishments: max 6 objects: "title"(≤35 chars), "impact"(≤20 chars e.g. "-20bps Misroutes"), "time"(e.g. "Jan'26"), "details", "metrics_impact"
+1. upcoming_launches: max 6 objects — planned launches or initiatives with a target date.
+   Fields: "name"(≤40 chars), "date"(short e.g. "17 Apr"), "owner", "summary", "metrics_impact"(list from [Misroutes,RTO,Reachability,Drift,Text Quality,Delivery Promise Breach])
 
-Use "" for missing strings, [] for missing lists. Only include what is clearly in the document.
+2. meeting_points: exactly 3 objects representing standing agenda items for the weekly leadership meeting.
+   YOU MUST always return all 3 of these topics — derive their content from the document:
+   - Topic 1: "Problems Being Tackled Next" — what issues or problems are being actively worked on or planned next
+   - Topic 2: "Overall Status & Outlook" — current health of the address track program, key numbers, trajectory
+   - Topic 3: "Blockers" — anything blocking progress, pending approvals, dependencies, risks
+   For each use: "topic"(use exactly the topic name above), "date"("Weekly Tuesday"), "summary"(1-2 sentences from doc), "launches_covered"(relevant launch names from doc), "metrics_focus"(list from [Misroutes,RTO,Reachability,Drift,Text Quality,Delivery Promise Breach])
+
+3. accomplishments: max 6 objects — things already completed or shipped.
+   Fields: "title"(≤35 chars), "impact"(≤20 chars e.g. "-20bps Misroutes"), "time"(e.g. "Jan'26"), "details", "metrics_impact"
+
+Use "" for missing strings, [] for missing lists.
 
 Document:
 ---
@@ -206,7 +206,7 @@ def get_item_detail(item_type, item, doc_content):
     c = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     prompts = {
         "launch":         f"Detailed leadership briefing on launch: \"{item.get('name')}\". Cover: what it is, why it matters, status, timeline, owner, risks, impact on Misroutes/RTO/Reachability/Drift/Text Quality/Delivery Promise Breach. Numbers. Clear headers. Under 300 words.",
-        "meeting":        f"Detailed briefing for meeting: \"{item.get('topic')}\". Cover: agenda, launches discussed, decisions expected, metric improvements on Misroutes/RTO/Reachability/Drift/Text Quality/Delivery Promise Breach. Numbers. Clear headers. Under 300 words.",
+        "meeting":        f"Detailed briefing for meeting topic: \"{item.get('topic')}\". Cover: current situation, what is being done, decisions expected, metric improvements on Misroutes/RTO/Reachability/Drift/Text Quality/Delivery Promise Breach. Numbers. Clear headers. Under 300 words.",
         "accomplishment": f"Detailed briefing on accomplishment: \"{item.get('title')}\". Cover: what was done, when, who, problem solved, measurable impact on Misroutes/RTO/Reachability/Drift/Text Quality/Delivery Promise Breach. Numbers. Clear headers. Under 300 words.",
     }
     try:
@@ -340,12 +340,10 @@ def handle_loading(doc_content):
         return
     item = st.session_state.popup_item or {}
     name = item.get("name") or item.get("topic") or item.get("title") or "item"
-    # Fixed banner at top of screen — visible regardless of scroll
     st.markdown(f"""<div class="top-loader">
         <div class="top-loader-ring"></div>
         <span>Fetching details for <strong>{name}</strong>…</span>
     </div>""", unsafe_allow_html=True)
-    # Cancel button — centred below the banner
     _, cc, _ = st.columns([2, 1, 2])
     with cc:
         if st.button("✕  Cancel", key="cancel_load", use_container_width=True):
@@ -432,10 +430,8 @@ else:
         st.error("⚠️ Could not load content. Please try again shortly.")
         st.stop()
 
-    # Loading overlay — called FIRST so it renders at top of page
     handle_loading(doc_content)
 
-    # Popup
     if st.session_state.popup_state == "ready":
         show_popup()
 
@@ -449,7 +445,6 @@ else:
         else "Hello"
     )
 
-    # ── Header ────────────────────────────────────────────────────────────────
     h1, h2 = st.columns([5, 1])
     with h1:
         st.markdown("## 🤵 Address_Chhotu")
@@ -466,10 +461,8 @@ else:
 
     st.markdown("<div style='margin-bottom:8px'></div>", unsafe_allow_html=True)
 
-    # ── 3 Cards ───────────────────────────────────────────────────────────────
     render_cards(cards, doc_content)
 
-    # ── Chat ──────────────────────────────────────────────────────────────────
     st.markdown("<hr class='chat-divider'>", unsafe_allow_html=True)
     st.markdown("#### 💬 Ask anything about address tracks")
     st.caption("Chat bar stays pinned at the bottom · Scroll down to read responses")
