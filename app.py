@@ -593,18 +593,37 @@ Context document:
             st.markdown(msg["content"])
 
     # Generate response — loads inline above the sticky input bar
-    if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking…"):
+if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
+    with st.chat_message("assistant"):
+        with st.spinner("Thinking…"):
+
+            # Clean messages — ensure they strictly alternate user/assistant
+            # This prevents BadRequestError from Anthropic on duplicate roles
+            cleaned = []
+            for msg in st.session_state.messages:
+                if cleaned and cleaned[-1]["role"] == msg["role"]:
+                    # Same role twice in a row — replace with latest
+                    cleaned[-1] = {"role": msg["role"], "content": msg["content"]}
+                else:
+                    cleaned.append({"role": msg["role"], "content": msg["content"]})
+
+            # Must start with user message
+            if cleaned and cleaned[0]["role"] != "user":
+                cleaned = cleaned[1:]
+
+            try:
                 response = client.messages.create(
                     model="claude-sonnet-4-20250514",
                     max_tokens=800,
                     system=SYSTEM_PROMPT,
-                    messages=[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages],
+                    messages=cleaned,
                 )
                 reply = response.content[0].text
-                st.markdown(reply)
-                st.session_state.messages.append({"role": "assistant", "content": reply})
+            except Exception as e:
+                reply = "Sorry, something went wrong. Please try asking again."
+
+            st.markdown(reply)
+            st.session_state.messages.append({"role": "assistant", "content": reply})
 
     # ── Sticky chat input — Streamlit pins this to the bottom automatically ───
     if prompt := st.chat_input("Ask about timelines, risks, owners, launches…"):
