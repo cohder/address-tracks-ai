@@ -42,12 +42,16 @@ st.markdown("""
 </script>
 """, unsafe_allow_html=True)
 
-# ─── Secrets ──────────────────────────────────────────────────────────────────
-client         = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
-ADMIN_PASSWORD = st.secrets["ADMIN_PASSWORD"]
-GOOGLE_DOC_URL = st.secrets["GOOGLE_DOC_URL"]
-ADMIN_EMAIL    = st.secrets.get("ADMIN_EMAIL", "admin@flipkart.com")
+# ─── Secrets (stored as strings, not objects — safe for caching) ──────────────
+ANTHROPIC_API_KEY = st.secrets["ANTHROPIC_API_KEY"]
+ADMIN_PASSWORD    = st.secrets["ADMIN_PASSWORD"]
+GOOGLE_DOC_URL    = st.secrets["GOOGLE_DOC_URL"]
+ADMIN_EMAIL       = st.secrets.get("ADMIN_EMAIL", "admin@flipkart.com")
 
+# ─── Non-cached client for direct use (chat) ──────────────────────────────────
+client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+# ─── Shared store ─────────────────────────────────────────────────────────────
 @st.cache_resource
 def get_shared_store():
     return {"usage_logs": []}
@@ -58,18 +62,26 @@ for k, v in {"messages": [], "is_admin": False, "show_login": False, "user_email
     if k not in st.session_state:
         st.session_state[k] = v
 
-# ─── Data fetching ────────────────────────────────────────────────────────────
-@st.cache_data(ttl=300)
-def fetch_google_doc():
-    try:
-        r = requests.get(GOOGLE_DOC_URL, timeout=10)
-        r.raise_for_status()
-        return r.text
-    except:
-        return None
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DATA FETCHING — api_key passed as param so caching works correctly
+# ═══════════════════════════════════════════════════════════════════════════════
 
 @st.cache_data(ttl=300)
-def extract_cards_from_doc(doc_content):
+def fetch_google_doc(url):
+    try:
+        r = requests.get(url, timeout=10)
+        r.raise_for_status()
+        return r.text
+    except Exception as e:
+        return None
+
+
+@st.cache_data(ttl=300)
+def extract_cards_from_doc(doc_content, api_key):
+    # Client created inside function — avoids @st.cache_data hashing conflict
+    c = anthropic.Anthropic(api_key=api_key)
+
     prompt = f"""Read this document and extract structured data. Return ONLY valid JSON, no explanation, no markdown fences.
 
 Extract:
@@ -88,7 +100,7 @@ Return exactly:
 {{"upcoming_launches":[{{"name":"","date":"","owner":"","summary":"","metrics_impact":[]}}],"meeting_points":[{{"topic":"","date":"","summary":"","launches_covered":[],"metrics_focus":[]}}],"accomplishments":[{{"title":"","impact":"","time":"","details":"","metrics_impact":[]}}]}}"""
 
     try:
-        response = client.messages.create(
+        response = c.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=2000,
             messages=[{"role": "user", "content": prompt}],
@@ -102,26 +114,29 @@ Return exactly:
     except Exception as e:
         return {"upcoming_launches": [], "meeting_points": [], "accomplishments": [], "error": str(e)}
 
+
 def get_item_detail(item_type, item, doc_content):
+    # Client created fresh — this function is not cached so no conflict
+    c = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     prompts = {
-        "launch": f"Detailed leadership briefing on launch: \"{item.get('name')}\". Cover: what it is, why it matters, status, timeline, owner, risks, impact on Misroutes/RTO/Reachability/Drift/Text Quality/Delivery Promise Breach. Use numbers. Clear headers. Under 300 words.",
-        "meeting": f"Detailed briefing for meeting: \"{item.get('topic')}\". Cover: agenda, launches discussed, decisions expected, metric improvements on Misroutes/RTO/Reachability/Drift/Text Quality/Delivery Promise Breach. Use numbers. Clear headers. Under 300 words.",
-        "accomplishment": f"Detailed briefing on accomplishment: \"{item.get('title')}\". Cover: what was done, when, who, problem solved, measurable impact on Misroutes/RTO/Reachability/Drift/Text Quality/Delivery Promise Breach. Use numbers. Clear headers. Under 300 words.",
+        "launch":        f"Detailed leadership briefing on launch: \"{item.get('name')}\". Cover: what it is, why it matters, status, timeline, owner, risks, impact on Misroutes/RTO/Reachability/Drift/Text Quality/Delivery Promise Breach. Use numbers. Clear headers. Under 300 words.",
+        "meeting":       f"Detailed briefing for meeting: \"{item.get('topic')}\". Cover: agenda, launches discussed, decisions expected, metric improvements on Misroutes/RTO/Reachability/Drift/Text Quality/Delivery Promise Breach. Use numbers. Clear headers. Under 300 words.",
+        "accomplishment":f"Detailed briefing on accomplishment: \"{item.get('title')}\". Cover: what was done, when, who, problem solved, measurable impact on Misroutes/RTO/Reachability/Drift/Text Quality/Delivery Promise Breach. Use numbers. Clear headers. Under 300 words.",
     }
     try:
-        response = client.messages.create(
+        response = c.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=600,
             system="Concise executive assistant. Use clear headers and bullet points. Be specific with numbers.",
             messages=[{"role": "user", "content": prompts[item_type] + f"\n\nDocument:\n---\n{doc_content}\n---"}],
         )
         return response.content[0].text
-    except:
-        return "Could not load details. Please try again."
+    except Exception as e:
+        return f"Could not load details: {str(e)}"
+
 
 def metric_pills(metrics):
-    if not metrics:
-        return ""
+    if not metrics: return ""
     colors = ["pill-green", "pill-blue"] * 6
     return "".join(f"<span class='metric-pill {colors[i]}'>{m}</span>" for i, m in enumerate(metrics))
 
@@ -133,6 +148,7 @@ def render_fab():
     bug_url     = f"https://mail.google.com/mail/?view=cm&to={ADMIN_EMAIL}&su=Bug+Report+%7C+Address_Chhotu&body=Hi%2C%0A%0ABug%3A%0A%0A[Describe]%0A%0AName%3A+{user}"
     contact_url = f"https://mail.google.com/mail/?view=cm&to={ADMIN_EMAIL}&su=Query+%7C+Address_Chhotu&body=Hi%2C%0A%0AQuery%3A%0A%0A[Message]%0A%0AName%3A+{user}"
     st.markdown(f"""<div class="fab-container"><div class="fab-options"><a href="{bug_url}" target="_blank" class="fab-btn">🐛 Report a Bug / Feedback</a><a href="{contact_url}" target="_blank" class="fab-btn">📬 Contact Admin</a></div><div class="fab-main" title="Contact & Help">💬</div></div>""", unsafe_allow_html=True)
+
 
 # ─── Popups ───────────────────────────────────────────────────────────────────
 @st.dialog("Launch Details", width="large")
@@ -170,6 +186,7 @@ def accomplishment_popup(item, doc_content):
     st.divider()
     with st.spinner("Loading details…"):
         st.markdown(get_item_detail("accomplishment", item, doc_content))
+
 
 # ─── Cards ────────────────────────────────────────────────────────────────────
 def render_cards(cards, doc_content):
@@ -249,11 +266,11 @@ elif st.session_state.is_admin:
             st.rerun()
 
     st.divider()
-    doc_content = fetch_google_doc()
+    doc_content = fetch_google_doc(GOOGLE_DOC_URL)
     if doc_content:
         st.success(f"✅ Google Doc connected · {len(doc_content):,} characters · refreshes every 5 mins")
         with st.expander("👀 Preview Claude extraction"):
-            cards = extract_cards_from_doc(doc_content)
+            cards = extract_cards_from_doc(doc_content, ANTHROPIC_API_KEY)
             if "error" in cards:
                 st.error(f"Extraction error: {cards['error']}")
             else:
@@ -269,7 +286,7 @@ elif st.session_state.is_admin:
         if st.button("🔄 Force refresh now"):
             fetch_google_doc.clear()
             extract_cards_from_doc.clear()
-            st.success("Cache cleared.")
+            st.success("Cache cleared — reloading.")
             st.rerun()
     else:
         st.error("⚠️ Could not fetch Google Doc. Check GOOGLE_DOC_URL in Streamlit Secrets.")
@@ -309,13 +326,13 @@ else:
         st.stop()
 
     # ── Fetch doc ─────────────────────────────────────────────────────────────
-    doc_content = fetch_google_doc()
+    doc_content = fetch_google_doc(GOOGLE_DOC_URL)
     if not doc_content:
         st.error("⚠️ Could not load content. Please try again shortly.")
         st.stop()
 
     with st.spinner("Syncing latest updates…"):
-        cards = extract_cards_from_doc(doc_content)
+        cards = extract_cards_from_doc(doc_content, ANTHROPIC_API_KEY)
 
     # ── Header ────────────────────────────────────────────────────────────────
     h1, h2 = st.columns([5, 1])
@@ -356,7 +373,6 @@ Context document:
 {doc_content}
 ---"""
 
-    # Suggested questions
     if not st.session_state.messages:
         suggestions = [
             "What's the status of each address track?",
@@ -373,12 +389,10 @@ Context document:
                     st.rerun()
         st.markdown("")
 
-    # Render messages
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # Generate AI response
     if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
         with st.chat_message("assistant"):
             with st.spinner("Thinking…"):
@@ -399,15 +413,13 @@ Context document:
                     )
                     reply = response.content[0].text
                 except Exception as e:
-                    reply = "Sorry, something went wrong. Please try asking again."
+                    reply = f"Error: {str(e)}"
                 st.markdown(reply)
                 st.session_state.messages.append({"role": "assistant", "content": reply})
 
-    # Sticky chat input
     if prompt := st.chat_input("Ask about timelines, risks, owners, launches…"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         log_usage(st.session_state.user_email, prompt)
         st.rerun()
 
-    # Floating contact button
     render_fab()
