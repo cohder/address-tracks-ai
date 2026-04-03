@@ -13,6 +13,10 @@ st.markdown("""
     div[data-testid="stDecoration"] { display: none; }
     .block-container { padding-top: 0.75rem !important; padding-bottom: 6rem; max-width: 1100px; }
 
+    /* ── Tighter gap between the 3 top card columns (~60% less than default) ── */
+    div[data-testid="stHorizontalBlock"] { gap: 0.35rem !important; }
+    div[data-testid="column"] { padding-left: 0.25rem !important; padding-right: 0.25rem !important; }
+
     /* ── Top-of-screen loading overlay ── */
     .top-loader {
         position: fixed;
@@ -38,19 +42,19 @@ st.markdown("""
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Card title ── */
+    /* ── Card title (one step larger than before) ── */
     .card-title {
-        font-size: 11px;
+        font-size: 13px;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.07em;
         color: #495057;
-        margin-bottom: 3px;
-        padding-bottom: 4px;
+        margin-bottom: 2px;
+        padding-bottom: 3px;
         border-bottom: 1px solid #e9ecef;
     }
 
-    /* ── Compact card item buttons ── */
+    /* ── Compact card item buttons: smaller text + minimal vertical waste ── */
     .compact-btn { margin: 0 !important; padding: 0 !important; line-height: 1 !important; }
     .compact-btn > div[data-testid="stButton"] { margin: 0 !important; padding: 0 !important; }
     .compact-btn > div[data-testid="stButton"] > button {
@@ -58,15 +62,15 @@ st.markdown("""
         border: none !important;
         border-bottom: 1px solid #f3f4f5 !important;
         border-radius: 0 !important;
-        padding: 0px 2px !important;
+        padding: 1px 2px !important;
         margin: 0 !important;
         text-align: left !important;
-        font-size: 7px !important;
+        font-size: 9px !important;
         color: #343a40 !important;
         box-shadow: none !important;
         height: auto !important;
         min-height: unset !important;
-        line-height: 1.2 !important;
+        line-height: 1.15 !important;
         width: 100% !important;
     }
     .compact-btn > div[data-testid="stButton"] > button:hover {
@@ -92,6 +96,12 @@ st.markdown("""
     .fab-main { width: 48px; height: 48px; background: #4f8ef7; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; cursor: pointer; box-shadow: 0 4px 12px rgba(79,142,247,0.4); border: none; color: white; line-height: 1; }
 
     .chat-divider { border: none; border-top: 1px solid #f0f0f0; margin: 0.75rem 0 0.5rem; }
+
+    /* ── Card containers: less internal padding so rows sit tighter ── */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        padding-top: 0.35rem !important;
+        padding-bottom: 0.35rem !important;
+    }
 </style>
 
 <button id="back-to-top" onclick="scrollToTop()">↑ Back to top</button>
@@ -113,6 +123,21 @@ ADMIN_EMAIL       = st.secrets.get("ADMIN_EMAIL", "admin@flipkart.com")
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
+
+def _viewer_identity():
+    """Streamlit Cloud can expose logged-in user; locally this is usually unset."""
+    try:
+        u = getattr(st, "user", None)
+        if u is None:
+            return None
+        email = getattr(u, "email", None)
+        if email:
+            return str(email).strip() or None
+    except Exception:
+        pass
+    return None
+
+
 @st.cache_resource
 def get_shared_store():
     return {"usage_logs": []}
@@ -127,8 +152,6 @@ for k, v in {
     "popup_type": None,
     "popup_item": None,
     "popup_detail": None,
-    "user_name": None,       # stores name entered by user this session
-    "name_entered": False,   # True once user has submitted their name
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
@@ -144,7 +167,7 @@ def fetch_google_doc(url):
         r = requests.get(url, timeout=10)
         r.raise_for_status()
         return r.text
-    except:
+    except Exception:
         return None
 
 
@@ -205,9 +228,9 @@ def log_usage(name, question):
         "timestamp": datetime.now().strftime("%d %b %Y, %I:%M %p"), "question": question})
 
 def render_fab():
-    user = st.session_state.user_name or "unknown"
-    bug_url     = f"https://mail.google.com/mail/?view=cm&to={ADMIN_EMAIL}&su=Bug+Report+%7C+Address_Chhotu&body=Hi%2C%0A%0ABug%3A%0A%0A[Describe]%0A%0AFrom%3A+{user}"
-    contact_url = f"https://mail.google.com/mail/?view=cm&to={ADMIN_EMAIL}&su=Query+%7C+Address_Chhotu&body=Hi%2C%0A%0AQuery%3A%0A%0A[Message]%0A%0AFrom%3A+{user}"
+    viewer = _viewer_identity() or "unknown"
+    bug_url     = f"https://mail.google.com/mail/?view=cm&to={ADMIN_EMAIL}&su=Bug+Report+%7C+Address_Chhotu&body=Hi%2C%0A%0ABug%3A%0A%0A[Describe]%0A%0AFrom%3A+{viewer}"
+    contact_url = f"https://mail.google.com/mail/?view=cm&to={ADMIN_EMAIL}&su=Query+%7C+Address_Chhotu&body=Hi%2C%0A%0AQuery%3A%0A%0A[Message]%0A%0AFrom%3A+{viewer}"
     st.markdown(f"""<div class="fab-container"><div class="fab-options">
         <a href="{bug_url}" target="_blank" class="fab-btn">🐛 Report a Bug / Feedback</a>
         <a href="{contact_url}" target="_blank" class="fab-btn">📬 Contact Admin</a>
@@ -404,25 +427,6 @@ elif st.session_state.is_admin:
         st.info("No questions asked yet.")
 
 else:
-    # ── Name gate — asks ONCE per session, then remembers ─────────────────────
-    if not st.session_state.name_entered:
-        st.markdown("## 🤵 Address_Chhotu")
-        st.markdown("Please enter your name or email to continue.")
-        st.markdown("")
-        name_input = st.text_input("Your name or email",
-            placeholder="e.g. Rajesh Kumar  or  rajesh@flipkart.com")
-        c1, _ = st.columns([1, 5])
-        with c1:
-            if st.button("Continue →", type="primary"):
-                if name_input.strip():
-                    st.session_state.user_name    = name_input.strip()
-                    st.session_state.name_entered = True
-                    st.rerun()
-                else:
-                    st.error("Please enter your name or email")
-        st.stop()
-
-    # ── From here, name is set for the whole session ──────────────────────────
     doc_content = fetch_google_doc(GOOGLE_DOC_URL)
     if not doc_content:
         st.error("⚠️ Could not load content. Please try again shortly.")
@@ -438,14 +442,20 @@ else:
     with st.spinner("Syncing latest updates…"):
         cards = extract_cards_from_doc(doc_content, ANTHROPIC_API_KEY)
 
-    # ── Header with greeting using the name they entered ──────────────────────
+    viewer_email = _viewer_identity()
+    hello_line = (
+        f"Hello, <strong>{viewer_email}</strong>"
+        if viewer_email
+        else "Hello"
+    )
+
+    # ── Header ────────────────────────────────────────────────────────────────
     h1, h2 = st.columns([5, 1])
     with h1:
         st.markdown("## 🤵 Address_Chhotu")
         st.markdown(
-            f"<p style='font-size:13px;color:#495057;margin:2px 0 0'>Hello, "
-            f"<strong>{st.session_state.user_name}</strong> · Synced from source doc</p>",
-            unsafe_allow_html=True
+            f"<p style='font-size:13px;color:#495057;margin:2px 0 0'>{hello_line} · Synced from source doc</p>",
+            unsafe_allow_html=True,
         )
     with h2:
         st.markdown("<div style='padding-top:12px'>", unsafe_allow_html=True)
@@ -477,6 +487,8 @@ Context:
 {doc_content}
 ---"""
 
+    _log_name = viewer_email or "anonymous"
+
     if not st.session_state.messages:
         suggestions = [
             "What's the status of each address track?",
@@ -489,7 +501,7 @@ Context:
             with (c1 if i % 2 == 0 else c2):
                 if st.button(s, use_container_width=True, key=f"sug{i}"):
                     st.session_state.messages.append({"role": "user", "content": s})
-                    log_usage(st.session_state.user_name, s)
+                    log_usage(_log_name, s)
                     st.rerun()
         st.markdown("")
 
@@ -520,7 +532,7 @@ Context:
 
     if prompt := st.chat_input("Ask about timelines, risks, owners, launches…"):
         st.session_state.messages.append({"role": "user", "content": prompt})
-        log_usage(st.session_state.user_name, prompt)
+        log_usage(_log_name, prompt)
         st.rerun()
 
     render_fab()
