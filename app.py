@@ -13,32 +13,32 @@ st.markdown("""
     div[data-testid="stDecoration"] { display: none; }
     .block-container { padding-top: 0.75rem !important; padding-bottom: 6rem; max-width: 1100px; }
 
-    /* Card title */
+    /* Card heading — bigger */
     .card-title {
-        font-size: 9px;
+        font-size: 13px;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.09em;
-        color: #6c757d;
+        letter-spacing: 0.07em;
+        color: #495057;
         margin-bottom: 4px;
         padding-bottom: 5px;
-        border-bottom: 1px solid #f0f0f0;
+        border-bottom: 1px solid #e9ecef;
     }
 
-    /* Compact card buttons */
+    /* Compact card buttons — smaller text, tighter spacing */
     .compact-btn > div[data-testid="stButton"] > button {
         background: transparent !important;
         border: none !important;
-        border-bottom: 1px solid #f8f9fa !important;
+        border-bottom: 1px solid #f3f4f5 !important;
         border-radius: 0 !important;
-        padding: 5px 2px !important;
+        padding: 1.5px 2px !important;
         text-align: left !important;
-        font-size: 11px !important;
-        color: #212529 !important;
+        font-size: 9px !important;
+        color: #343a40 !important;
         box-shadow: none !important;
         height: auto !important;
         min-height: unset !important;
-        line-height: 1.4 !important;
+        line-height: 1.3 !important;
         width: 100% !important;
     }
     .compact-btn > div[data-testid="stButton"] > button:hover {
@@ -85,6 +85,7 @@ st.markdown("""
     .fab-btn { background: white; border: 1px solid #dee2e6; border-radius: 20px; padding: 7px 14px; font-size: 12px; font-weight: 500; color: #343a40; cursor: pointer; text-decoration: none; box-shadow: 0 2px 8px rgba(0,0,0,0.1); white-space: nowrap; display: block; }
     .fab-btn:hover { background: #f8f9fa; color: #343a40; text-decoration: none; }
     .fab-main { width: 48px; height: 48px; background: #4f8ef7; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; cursor: pointer; box-shadow: 0 4px 12px rgba(79,142,247,0.4); border: none; color: white; line-height: 1; }
+
     .chat-divider { border: none; border-top: 1px solid #f0f0f0; margin: 1rem 0 0.5rem; }
 </style>
 
@@ -129,8 +130,8 @@ for k, v in {
     "messages": [],
     "is_admin": False,
     "show_login": False,
-    "popup_state": None,   # None | "loading" | "ready"
-    "popup_type": None,    # "launch" | "meeting" | "accomplishment"
+    "popup_state": None,
+    "popup_type": None,
     "popup_item": None,
     "popup_detail": None,
 }.items():
@@ -162,13 +163,14 @@ def fetch_google_doc(url):
     except:
         return None
 
+
 @st.cache_data(ttl=300)
 def extract_cards_from_doc(doc_content, api_key):
     c = anthropic.Anthropic(api_key=api_key)
     prompt = f"""Read this document and extract structured data. Return ONLY valid JSON, no markdown fences.
 
 Extract:
-1. upcoming_launches: max 6 objects: "name"(≤40 chars), "date"(short), "owner", "summary", "metrics_impact"(list from [Misroutes,RTO,Reachability,Drift,Text Quality,Delivery Promise Breach])
+1. upcoming_launches: max 6 objects: "name"(≤40 chars), "date"(short e.g. "17 Apr"), "owner", "summary", "metrics_impact"(list from [Misroutes,RTO,Reachability,Drift,Text Quality,Delivery Promise Breach])
 2. meeting_points: max 6 objects: "topic"(≤40 chars), "date", "summary", "launches_covered", "metrics_focus"(same list)
 3. accomplishments: max 6 objects: "title"(≤35 chars), "impact"(≤20 chars e.g. "-20bps Misroutes"), "time"(e.g. "Jan'26"), "details", "metrics_impact"
 
@@ -192,10 +194,11 @@ Return exactly:
     except Exception as e:
         return {"upcoming_launches": [], "meeting_points": [], "accomplishments": [], "error": str(e)}
 
+
 def get_item_detail(item_type, item, doc_content):
     c = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     prompts = {
-        "launch":         f"Detailed leadership briefing on launch: \"{item.get('name')}\". Cover: what it is, why it matters, status, timeline, owner, risks, impact on Misroutes/RTO/Reachability/Drift/Text Quality/Delivery Promise Breach. Use numbers. Clear headers. Under 300 words.",
+        "launch":         f"Detailed leadership briefing on launch: \"{item.get('name')}\". Cover: what it is, why it matters, status, timeline, owner, risks, impact on Misroutes/RTO/Reachability/Drift/Text Quality/Delivery Promise Breach. Numbers. Clear headers. Under 300 words.",
         "meeting":        f"Detailed briefing for meeting: \"{item.get('topic')}\". Cover: agenda, launches discussed, decisions expected, metric improvements on Misroutes/RTO/Reachability/Drift/Text Quality/Delivery Promise Breach. Numbers. Clear headers. Under 300 words.",
         "accomplishment": f"Detailed briefing on accomplishment: \"{item.get('title')}\". Cover: what was done, when, who, problem solved, measurable impact on Misroutes/RTO/Reachability/Drift/Text Quality/Delivery Promise Breach. Numbers. Clear headers. Under 300 words.",
     }
@@ -206,6 +209,7 @@ def get_item_detail(item_type, item, doc_content):
         return response.content[0].text
     except Exception as e:
         return f"Could not load details: {str(e)}"
+
 
 def metric_pills(metrics):
     if not metrics: return ""
@@ -225,10 +229,7 @@ def render_fab():
     </div><div class="fab-main" title="Help">💬</div></div>""", unsafe_allow_html=True)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# POPUP DIALOG — single shared dialog driven by session state
-# ═══════════════════════════════════════════════════════════════════════════════
-
+# ─── Popup dialog ─────────────────────────────────────────────────────────────
 @st.dialog("Details", width="large")
 def show_popup():
     item      = st.session_state.popup_item or {}
@@ -263,25 +264,21 @@ def show_popup():
         st.rerun()
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# CARDS — items ARE the buttons, max 4 visible, rest in expander
-# ═══════════════════════════════════════════════════════════════════════════════
-
+# ─── Card button helper ───────────────────────────────────────────────────────
 def card_button(label, key, item, item_type):
-    """Render a compact clickable button row inside a card."""
     st.markdown("<div class='compact-btn'>", unsafe_allow_html=True)
     if st.button(label, key=key, use_container_width=True):
         st.session_state.popup_state = "loading"
-        st.session_state.popup_type = item_type
-        st.session_state.popup_item = item
+        st.session_state.popup_type  = item_type
+        st.session_state.popup_item  = item
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
 
+# ─── Cards ────────────────────────────────────────────────────────────────────
 def render_cards(cards, doc_content):
     col1, col2, col3 = st.columns(3)
 
-    # ── Upcoming Launches ─────────────────────────────────────────────────────
     with col1:
         with st.container(border=True):
             st.markdown("<div class='card-title'>🚀 Upcoming Launches</div>", unsafe_allow_html=True)
@@ -289,21 +286,19 @@ def render_cards(cards, doc_content):
             if not launches:
                 st.caption("Nothing found in doc yet")
             else:
-                visible, extra = launches[:4], launches[4:]
-                for i, l in enumerate(visible):
-                    name = (l.get("name","") or "")[:40]
-                    date = l.get("date","") or ""
+                for i, l in enumerate(launches[:4]):
+                    name  = (l.get("name","") or "")[:40]
+                    date  = l.get("date","") or ""
                     label = f"🚀 {name}" + (f"  ·  {date}" if date else "")
                     card_button(label, f"launch_{i}", l, "launch")
-                if extra:
-                    with st.expander(f"+ {len(extra)} more"):
-                        for i, l in enumerate(extra):
-                            name = (l.get("name","") or "")[:40]
-                            date = l.get("date","") or ""
+                if len(launches) > 4:
+                    with st.expander(f"+ {len(launches)-4} more"):
+                        for i, l in enumerate(launches[4:]):
+                            name  = (l.get("name","") or "")[:40]
+                            date  = l.get("date","") or ""
                             label = f"🚀 {name}" + (f"  ·  {date}" if date else "")
                             card_button(label, f"launch_e_{i}", l, "launch")
 
-    # ── Meeting Points ────────────────────────────────────────────────────────
     with col2:
         with st.container(border=True):
             st.markdown("<div class='card-title'>📅 Meeting Points</div>", unsafe_allow_html=True)
@@ -311,17 +306,15 @@ def render_cards(cards, doc_content):
             if not meetings:
                 st.caption("Nothing found in doc yet")
             else:
-                visible, extra = meetings[:4], meetings[4:]
-                for i, m in enumerate(visible):
+                for i, m in enumerate(meetings[:4]):
                     label = f"📅 {(m.get('topic','') or '')[:40]}"
                     card_button(label, f"meeting_{i}", m, "meeting")
-                if extra:
-                    with st.expander(f"+ {len(extra)} more"):
-                        for i, m in enumerate(extra):
+                if len(meetings) > 4:
+                    with st.expander(f"+ {len(meetings)-4} more"):
+                        for i, m in enumerate(meetings[4:]):
                             label = f"📅 {(m.get('topic','') or '')[:40]}"
                             card_button(label, f"meeting_e_{i}", m, "meeting")
 
-    # ── Accomplishments ───────────────────────────────────────────────────────
     with col3:
         with st.container(border=True):
             st.markdown("<div class='card-title'>🏆 Accomplishments</div>", unsafe_allow_html=True)
@@ -329,55 +322,37 @@ def render_cards(cards, doc_content):
             if not accomplishments:
                 st.caption("Nothing found in doc yet")
             else:
-                visible, extra = accomplishments[:4], accomplishments[4:]
-                for i, a in enumerate(visible):
+                for i, a in enumerate(accomplishments[:4]):
                     title  = (a.get("title","") or "")[:35]
                     impact = (a.get("impact","") or "")[:20]
                     label  = f"✅ {title}" + (f"  ·  {impact}" if impact else "")
                     card_button(label, f"accomp_{i}", a, "accomplishment")
-                if extra:
-                    with st.expander(f"+ {len(extra)} more"):
-                        for i, a in enumerate(extra):
+                if len(accomplishments) > 4:
+                    with st.expander(f"+ {len(accomplishments)-4} more"):
+                        for i, a in enumerate(accomplishments[4:]):
                             title  = (a.get("title","") or "")[:35]
                             impact = (a.get("impact","") or "")[:20]
                             label  = f"✅ {title}" + (f"  ·  {impact}" if impact else "")
                             card_button(label, f"accomp_e_{i}", a, "accomplishment")
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# LOADING HANDLER — shows spinner, fetches, then triggers popup
-# ═══════════════════════════════════════════════════════════════════════════════
-
+# ─── Loading handler ──────────────────────────────────────────────────────────
 def handle_loading(doc_content):
     if st.session_state.popup_state != "loading":
         return
-
     item = st.session_state.popup_item or {}
     name = item.get("name") or item.get("topic") or item.get("title") or "item"
-
-    # Loading banner
-    st.markdown(f"""
-    <div class="loading-banner">
+    st.markdown(f"""<div class="loading-banner">
         <div class="spinner-ring"></div>
         <span>Fetching details for <strong>{name}</strong>…</span>
     </div>""", unsafe_allow_html=True)
-
-    # Cancel button
     if st.button("✕ Cancel", key="cancel_load"):
         st.session_state.popup_state = None
         st.rerun()
-
-    # Fetch detail — spinner shows during this call
     with st.spinner(""):
-        detail = get_item_detail(
-            st.session_state.popup_type,
-            st.session_state.popup_item,
-            doc_content
-        )
-
-    # Mark ready and rerun to open dialog
+        detail = get_item_detail(st.session_state.popup_type, item, doc_content)
     st.session_state.popup_detail = detail
-    st.session_state.popup_state = "ready"
+    st.session_state.popup_state  = "ready"
     st.rerun()
 
 
@@ -392,7 +367,7 @@ if st.session_state.show_login and not st.session_state.is_admin:
     with c1:
         if st.button("Login", type="primary"):
             if pwd == ADMIN_PASSWORD:
-                st.session_state.is_admin = True
+                st.session_state.is_admin  = True
                 st.session_state.show_login = False
                 st.rerun()
             else:
@@ -411,7 +386,6 @@ elif st.session_state.is_admin:
         if st.button("Sign out", use_container_width=True):
             st.session_state.is_admin = False
             st.rerun()
-
     st.divider()
     doc_content = fetch_google_doc(GOOGLE_DOC_URL)
     if doc_content:
@@ -434,7 +408,6 @@ elif st.session_state.is_admin:
             st.rerun()
     else:
         st.error("⚠️ Could not fetch Google Doc.")
-
     st.divider()
     st.markdown("#### 📊 Usage Tracking")
     if shared["usage_logs"]:
@@ -452,7 +425,6 @@ elif st.session_state.is_admin:
         st.info("No questions asked yet.")
 
 else:
-    # ── Fetch doc ─────────────────────────────────────────────────────────────
     doc_content = fetch_google_doc(GOOGLE_DOC_URL)
     if not doc_content:
         st.error("⚠️ Could not load content. Please try again shortly.")
@@ -461,7 +433,7 @@ else:
     with st.spinner("Syncing latest updates…"):
         cards = extract_cards_from_doc(doc_content, ANTHROPIC_API_KEY)
 
-    # ── Header ────────────────────────────────────────────────────────────────
+    # Header
     h1, h2 = st.columns([5, 1])
     with h1:
         st.markdown("## 🤵 Address_Chhotu")
@@ -475,17 +447,17 @@ else:
 
     st.markdown("")
 
-    # ── 3 Cards ───────────────────────────────────────────────────────────────
+    # 3 Cards
     render_cards(cards, doc_content)
 
-    # ── Loading handler (shows spinner + cancel, then opens popup) ────────────
+    # Loading handler
     handle_loading(doc_content)
 
-    # ── Popup (triggered after loading completes) ─────────────────────────────
+    # Popup
     if st.session_state.popup_state == "ready":
         show_popup()
 
-    # ── Chat ──────────────────────────────────────────────────────────────────
+    # Chat
     st.markdown("<hr class='chat-divider'>", unsafe_allow_html=True)
     st.markdown("#### 💬 Ask anything about address tracks")
     st.caption("Chat bar stays pinned at the bottom · Scroll down to read responses")
@@ -494,7 +466,7 @@ else:
 - Answer ONLY from the context document
 - Be direct, no filler phrases
 - Use **bold** for key terms/numbers, bullets for 3+ items, short paragraphs
-- Call out metric improvements (Misroutes, RTO, Reachability, Drift, Text Quality, Delivery Promise Breach) with numbers
+- Highlight metric improvements (Misroutes, RTO, Reachability, Drift, Text Quality, Delivery Promise Breach) with numbers
 - If not in document, say so in one line
 - Under 200 words
 
