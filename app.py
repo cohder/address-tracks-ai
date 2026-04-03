@@ -13,30 +13,52 @@ st.markdown("""
     div[data-testid="stDecoration"] { display: none; }
     .block-container { padding-top: 0.75rem !important; padding-bottom: 6rem; max-width: 1100px; }
 
-    .card-title {
+    /* ── Top-of-screen loading overlay ── */
+    .top-loader {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        z-index: 99999;
+        background: #1a3a6b;
+        color: white;
+        padding: 9px 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
         font-size: 13px;
+        font-weight: 500;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.35);
+    }
+    .top-loader-ring {
+        width: 15px; height: 15px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Card title ── */
+    .card-title {
+        font-size: 11px;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.07em;
         color: #495057;
-        margin-bottom: 4px;
-        padding-bottom: 5px;
+        margin-bottom: 3px;
+        padding-bottom: 4px;
         border-bottom: 1px solid #e9ecef;
     }
 
-    /* Remove ALL spacing Streamlit adds around buttons inside cards */
+    /* ── Compact card item buttons ── */
     .compact-btn { margin: 0 !important; padding: 0 !important; line-height: 1 !important; }
-    .compact-btn > div[data-testid="stButton"] {
-        margin: 0 !important;
-        padding: 0 !important;
-        gap: 0 !important;
-    }
+    .compact-btn > div[data-testid="stButton"] { margin: 0 !important; padding: 0 !important; }
     .compact-btn > div[data-testid="stButton"] > button {
         background: transparent !important;
         border: none !important;
         border-bottom: 1px solid #f3f4f5 !important;
         border-radius: 0 !important;
-        padding: 0px 2px 0px 2px !important;
+        padding: 0px 2px !important;
         margin: 0 !important;
         text-align: left !important;
         font-size: 7px !important;
@@ -46,72 +68,40 @@ st.markdown("""
         min-height: unset !important;
         line-height: 1.2 !important;
         width: 100% !important;
-        display: block !important;
     }
     .compact-btn > div[data-testid="stButton"] > button:hover {
         background: #f0f4ff !important;
         color: #4f8ef7 !important;
     }
 
-    /* Loading banner */
-    .loading-banner {
-        background: #f0f4ff;
-        border: 1px solid #c5d5f5;
-        border-radius: 10px;
-        padding: 14px 18px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin: 1rem 0;
-        font-size: 13px;
-        color: #1a3a6b;
-    }
-    .spinner-ring {
-        width: 18px; height: 18px;
-        border: 2px solid #c5d5f5;
-        border-top-color: #4f8ef7;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-        flex-shrink: 0;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
+    /* ── Metric pills ── */
     .metric-pill { display: inline-block; font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 20px; margin: 1px 1px 0 0; }
     .pill-green { background: #d4edda; color: #155724; }
     .pill-blue  { background: #d1ecf1; color: #0c5460; }
 
+    /* ── Back to top ── */
     #back-to-top { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: white; border: none; border-radius: 24px; padding: 8px 18px; font-size: 13px; font-weight: 500; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.2); display: none; align-items: center; z-index: 9998; }
     #back-to-top:hover { background: #2d2d4e; }
 
+    /* ── FAB ── */
     .fab-container { position: fixed; bottom: 28px; right: 28px; z-index: 9999; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
     .fab-options { display: none; flex-direction: column; gap: 6px; align-items: flex-end; }
     .fab-container:hover .fab-options { display: flex; }
     .fab-btn { background: white; border: 1px solid #dee2e6; border-radius: 20px; padding: 7px 14px; font-size: 12px; font-weight: 500; color: #343a40; cursor: pointer; text-decoration: none; box-shadow: 0 2px 8px rgba(0,0,0,0.1); white-space: nowrap; display: block; }
     .fab-btn:hover { background: #f8f9fa; color: #343a40; text-decoration: none; }
     .fab-main { width: 48px; height: 48px; background: #4f8ef7; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; cursor: pointer; box-shadow: 0 4px 12px rgba(79,142,247,0.4); border: none; color: white; line-height: 1; }
-    .chat-divider { border: none; border-top: 1px solid #f0f0f0; margin: 1rem 0 0.5rem; }
+
+    .chat-divider { border: none; border-top: 1px solid #f0f0f0; margin: 0.75rem 0 0.5rem; }
 </style>
 
 <button id="back-to-top" onclick="scrollToTop()">↑ Back to top</button>
 <script>
-function getScrollEl() {
-    return document.querySelector('[data-testid="stAppViewContainer"]') || document.documentElement;
-}
-function scrollToTop() {
-    var el = getScrollEl();
-    if (el && el.scrollTo) el.scrollTo({top:0,behavior:'smooth'});
-    else window.scrollTo({top:0,behavior:'smooth'});
-}
-function checkScroll() {
-    var el = getScrollEl();
-    var btn = document.getElementById('back-to-top');
-    if (!btn) return;
-    var s = el === window ? window.scrollY : el.scrollTop;
-    btn.style.display = s > 300 ? 'flex' : 'none';
-}
-window.addEventListener('scroll', checkScroll, true);
-document.addEventListener('scroll', checkScroll, true);
-setInterval(checkScroll, 800);
+function getScrollEl() { return document.querySelector('[data-testid="stAppViewContainer"]') || document.documentElement; }
+function scrollToTop() { var el=getScrollEl(); if(el&&el.scrollTo) el.scrollTo({top:0,behavior:'smooth'}); else window.scrollTo({top:0,behavior:'smooth'}); }
+function checkScroll() { var el=getScrollEl(); var btn=document.getElementById('back-to-top'); if(!btn)return; var s=el===window?window.scrollY:el.scrollTop; btn.style.display=s>300?'flex':'none'; }
+window.addEventListener('scroll',checkScroll,true);
+document.addEventListener('scroll',checkScroll,true);
+setInterval(checkScroll,800);
 </script>
 """, unsafe_allow_html=True)
 
@@ -137,26 +127,11 @@ for k, v in {
     "popup_type": None,
     "popup_item": None,
     "popup_detail": None,
+    "user_name": None,       # stores name entered by user this session
+    "name_entered": False,   # True once user has submitted their name
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
-
-
-# ─── Get user email from Streamlit Cloud auth ─────────────────────────────────
-def get_user_email():
-    # Try st.user first (newer Streamlit), then st.experimental_user (older)
-    for attr in ["user", "experimental_user"]:
-        try:
-            user_obj = getattr(st, attr, None)
-            if user_obj is not None:
-                email = getattr(user_obj, "email", None)
-                if email and email.strip() and email != "":
-                    return email.strip()
-        except Exception:
-            pass
-    return None   # None means unauthenticated / local dev
-
-USER_EMAIL = get_user_email()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -179,7 +154,7 @@ def extract_cards_from_doc(doc_content, api_key):
     prompt = f"""Read this document and extract structured data. Return ONLY valid JSON, no markdown fences.
 
 Extract:
-1. upcoming_launches: max 6 objects: "name"(≤40 chars), "date"(short e.g. "17 Apr"), "owner", "summary", "metrics_impact"(list from [Misroutes,RTO,Reachability,Drift,Text Quality,Delivery Promise Breach])
+1. upcoming_launches: max 6 objects: "name"(≤40 chars), "date"(short), "owner", "summary", "metrics_impact"(list from [Misroutes,RTO,Reachability,Drift,Text Quality,Delivery Promise Breach])
 2. meeting_points: max 6 objects: "topic"(≤40 chars), "date", "summary", "launches_covered", "metrics_focus"(same list)
 3. accomplishments: max 6 objects: "title"(≤35 chars), "impact"(≤20 chars e.g. "-20bps Misroutes"), "time"(e.g. "Jan'26"), "details", "metrics_impact"
 
@@ -225,12 +200,12 @@ def metric_pills(metrics):
     colors = ["pill-green", "pill-blue"] * 6
     return "".join(f"<span class='metric-pill {colors[i]}'>{m}</span>" for i, m in enumerate(metrics))
 
-def log_usage(email, question):
-    shared["usage_logs"].append({"email": email or "unknown",
+def log_usage(name, question):
+    shared["usage_logs"].append({"email": name or "unknown",
         "timestamp": datetime.now().strftime("%d %b %Y, %I:%M %p"), "question": question})
 
 def render_fab():
-    user = USER_EMAIL or "unknown"
+    user = st.session_state.user_name or "unknown"
     bug_url     = f"https://mail.google.com/mail/?view=cm&to={ADMIN_EMAIL}&su=Bug+Report+%7C+Address_Chhotu&body=Hi%2C%0A%0ABug%3A%0A%0A[Describe]%0A%0AFrom%3A+{user}"
     contact_url = f"https://mail.google.com/mail/?view=cm&to={ADMIN_EMAIL}&su=Query+%7C+Address_Chhotu&body=Hi%2C%0A%0AQuery%3A%0A%0A[Message]%0A%0AFrom%3A+{user}"
     st.markdown(f"""<div class="fab-container"><div class="fab-options">
@@ -245,7 +220,6 @@ def show_popup():
     item      = st.session_state.popup_item or {}
     item_type = st.session_state.popup_type
     detail    = st.session_state.popup_detail or ""
-
     if item_type == "launch":
         st.markdown(f"## 🚀 {item.get('name','')}")
         meta = []
@@ -262,7 +236,6 @@ def show_popup():
         if item.get("time"):   meta.append(f"📅 {item['time']}")
         if item.get("impact"): meta.append(f"📈 {item['impact']}")
         if meta: st.caption("  ·  ".join(meta))
-
     metrics = item.get("metrics_impact") or item.get("metrics_focus") or []
     if metrics: st.markdown(metric_pills(metrics), unsafe_allow_html=True)
     st.divider()
@@ -272,7 +245,7 @@ def show_popup():
         st.rerun()
 
 
-# ─── Card button helper ───────────────────────────────────────────────────────
+# ─── Card button ──────────────────────────────────────────────────────────────
 def card_button(label, key, item, item_type):
     st.markdown("<div class='compact-btn'>", unsafe_allow_html=True)
     if st.button(label, key=key, use_container_width=True):
@@ -295,8 +268,8 @@ def render_cards(cards, doc_content):
                 st.caption("Nothing found in doc yet")
             else:
                 for i, l in enumerate(launches[:4]):
-                    name  = (l.get("name","") or "")[:40]
-                    date  = l.get("date","") or ""
+                    name = (l.get("name","") or "")[:40]
+                    date = l.get("date","") or ""
                     card_button(f"🚀 {name}" + (f"  ·  {date}" if date else ""), f"launch_{i}", l, "launch")
                 if len(launches) > 4:
                     with st.expander(f"+ {len(launches)-4} more"):
@@ -338,20 +311,24 @@ def render_cards(cards, doc_content):
                             card_button(f"✅ {title}" + (f"  ·  {impact}" if impact else ""), f"accomp_e_{i}", a, "accomplishment")
 
 
-# ─── Loading handler ──────────────────────────────────────────────────────────
+# ─── Loading — fixed top overlay ──────────────────────────────────────────────
 def handle_loading(doc_content):
     if st.session_state.popup_state != "loading":
         return
     item = st.session_state.popup_item or {}
     name = item.get("name") or item.get("topic") or item.get("title") or "item"
-    st.markdown(f"""<div class="loading-banner">
-        <div class="spinner-ring"></div>
+    # Fixed banner at top of screen — visible regardless of scroll
+    st.markdown(f"""<div class="top-loader">
+        <div class="top-loader-ring"></div>
         <span>Fetching details for <strong>{name}</strong>…</span>
     </div>""", unsafe_allow_html=True)
-    if st.button("✕ Cancel", key="cancel_load"):
-        st.session_state.popup_state = None
-        st.rerun()
-    with st.spinner(""):
+    # Cancel button — centred below the banner
+    _, cc, _ = st.columns([2, 1, 2])
+    with cc:
+        if st.button("✕  Cancel", key="cancel_load", use_container_width=True):
+            st.session_state.popup_state = None
+            st.rerun()
+    with st.spinner("Loading…"):
         detail = get_item_detail(st.session_state.popup_type, item, doc_content)
     st.session_state.popup_detail = detail
     st.session_state.popup_state  = "ready"
@@ -418,7 +395,7 @@ elif st.session_state.is_admin:
         with mc2: st.metric("Unique Users", len(set(l["email"] for l in shared["usage_logs"])))
         with mc3: st.metric("Last Activity", shared["usage_logs"][-1]["timestamp"])
         df = pd.DataFrame(shared["usage_logs"][::-1])
-        df.columns = ["Email", "Timestamp", "Question"]
+        df.columns = ["Name / Email", "Timestamp", "Question"]
         st.dataframe(df, use_container_width=True, hide_index=True)
         if st.button("🗑️ Clear logs"):
             shared["usage_logs"] = []
@@ -427,22 +404,49 @@ elif st.session_state.is_admin:
         st.info("No questions asked yet.")
 
 else:
+    # ── Name gate — asks ONCE per session, then remembers ─────────────────────
+    if not st.session_state.name_entered:
+        st.markdown("## 🤵 Address_Chhotu")
+        st.markdown("Please enter your name or email to continue.")
+        st.markdown("")
+        name_input = st.text_input("Your name or email",
+            placeholder="e.g. Rajesh Kumar  or  rajesh@flipkart.com")
+        c1, _ = st.columns([1, 5])
+        with c1:
+            if st.button("Continue →", type="primary"):
+                if name_input.strip():
+                    st.session_state.user_name    = name_input.strip()
+                    st.session_state.name_entered = True
+                    st.rerun()
+                else:
+                    st.error("Please enter your name or email")
+        st.stop()
+
+    # ── From here, name is set for the whole session ──────────────────────────
     doc_content = fetch_google_doc(GOOGLE_DOC_URL)
     if not doc_content:
         st.error("⚠️ Could not load content. Please try again shortly.")
         st.stop()
 
+    # Loading overlay — called FIRST so it renders at top of page
+    handle_loading(doc_content)
+
+    # Popup
+    if st.session_state.popup_state == "ready":
+        show_popup()
+
     with st.spinner("Syncing latest updates…"):
         cards = extract_cards_from_doc(doc_content, ANTHROPIC_API_KEY)
 
-    # Header — show actual email or nothing if unavailable
+    # ── Header with greeting using the name they entered ──────────────────────
     h1, h2 = st.columns([5, 1])
     with h1:
         st.markdown("## 🤵 Address_Chhotu")
-        if USER_EMAIL:
-            st.caption(f"Welcome, {USER_EMAIL} · Synced from source doc")
-        else:
-            st.caption("Synced from source doc")
+        st.markdown(
+            f"<p style='font-size:13px;color:#495057;margin:2px 0 0'>Hello, "
+            f"<strong>{st.session_state.user_name}</strong> · Synced from source doc</p>",
+            unsafe_allow_html=True
+        )
     with h2:
         st.markdown("<div style='padding-top:12px'>", unsafe_allow_html=True)
         if st.button("Admin", use_container_width=True):
@@ -450,13 +454,12 @@ else:
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown("")
+    st.markdown("<div style='margin-bottom:8px'></div>", unsafe_allow_html=True)
+
+    # ── 3 Cards ───────────────────────────────────────────────────────────────
     render_cards(cards, doc_content)
-    handle_loading(doc_content)
 
-    if st.session_state.popup_state == "ready":
-        show_popup()
-
+    # ── Chat ──────────────────────────────────────────────────────────────────
     st.markdown("<hr class='chat-divider'>", unsafe_allow_html=True)
     st.markdown("#### 💬 Ask anything about address tracks")
     st.caption("Chat bar stays pinned at the bottom · Scroll down to read responses")
@@ -486,7 +489,7 @@ Context:
             with (c1 if i % 2 == 0 else c2):
                 if st.button(s, use_container_width=True, key=f"sug{i}"):
                     st.session_state.messages.append({"role": "user", "content": s})
-                    log_usage(USER_EMAIL, s)
+                    log_usage(st.session_state.user_name, s)
                     st.rerun()
         st.markdown("")
 
@@ -517,7 +520,7 @@ Context:
 
     if prompt := st.chat_input("Ask about timelines, risks, owners, launches…"):
         st.session_state.messages.append({"role": "user", "content": prompt})
-        log_usage(USER_EMAIL, prompt)
+        log_usage(st.session_state.user_name, prompt)
         st.rerun()
 
     render_fab()
