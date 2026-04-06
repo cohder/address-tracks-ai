@@ -107,7 +107,7 @@ setInterval(checkScroll,800);
 </script>
 """, unsafe_allow_html=True)
 
-# ─── Secrets ──────────────────────────────────────────────────────────────────
+# ─── Secrets ─────────────────────────────────────────────────────────────────
 ANTHROPIC_API_KEY = st.secrets["ANTHROPIC_API_KEY"]
 ADMIN_PASSWORD    = st.secrets["ADMIN_PASSWORD"]
 GOOGLE_DOC_URL    = st.secrets["GOOGLE_DOC_URL"]
